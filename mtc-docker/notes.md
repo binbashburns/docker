@@ -61,4 +61,67 @@
 - `docker ps -a --filter before=$(docker ps -a -l --format {{.Names}})`: Presents all Docker images BESIDES the latest container image (`-l` means latest)
 - `docker rm $(docker ps -a -q --filter before=$(docker ps -a -l --format {{.Names}}))`: Deletes all Docker images BESIDES the latest container
 - `docker rmi -f $(docker images -q)`: Delete all Docker images
-- 
+
+## Flask Stuff
+- `cd dev1`: Move into `dev1`
+- `docker run -it python /bin/sh`: Open interactive Python shell
+- We want access to this `/app` directory from within the Python container. To do that we'll use the `-v` flag
+- `docker run -it -v $PWD/app:/app python /bin/sh`: Starts interactive Python container, mounts the `/app` directory to `/app` in the container
+- `cd app`: From the interactive Docker container, move into the mounted folder. 
+- Now when you modify the code in the `app` folder in the Docker mounted directory, it modifies the files in the actual directory on the host.
+- `pip3 install -r requirements.txt`: This installs everything defined in the `requirements.txt` file
+- `python app.py`: Starts flask server. You can now navigate to it using the public IP
+- This method of starting the Flask server is not ideal. We don't want to have to start it manually. 
+- Let's make a new file in the `/app` directory and call it `run.sh`
+- `chmod +x run.sh`
+- `docker run -it -v $PWD/app:/app -w /app python /bin/sh run.sh`: Run this from `/docker/mtc-docker/infrastructure/dev1`
+- `docker inspect $(docker ps -q) | jq -r .[0].NetworkSettings.IPAddress`: Gathers internal IP address of the Docker container running flask
+- Open a new terminal, then run
+- `curl http://172.17.0.2:5000`
+- You should see something output like this:
+```
+{
+  "data": {
+    "name": "0f9156ced9e9", 
+    "temp": 11
+  }
+}
+```
+- You could've also chained these two together with: 
+- `curl http://$(docker inspect $(docker ps -q) | jq -r .[0].NetworkSettings.IPAddress):5000`
+
+## Docker Ports and Detaching
+- `docker run -d -v $PWD/app:/app -w /app python /bin/sh run.sh`: Runs locally, and the container is only accessible from the host
+- `docker run -d --publish 5000 -v $PWD/app:/app -w /app python /bin/sh run.sh`: Exposes port 5000 **ON THE CONTAINER** to be accessible from the host IP (either the IPv4 address or `localhost`)
+- `docker ps -a`: See which port is open on the localhost. (Example: `0.0.0.0:49153->5000/tcp`)
+- Open a browser and navigate to `http://<PUBLIC_IP>:49153`, for example
+- `docker run -dp 5000:5000 -v $PWD/app:/app -w /app python /bin/sh run.sh`: Exposes port 5000 **ON THE CONTAINER** and maps it to port 5000 **ON THE HOST**
+- You can now navigate to `http://<PUBLIC_IP>:5000
+
+## Overlay2 Filesystem Deep Dive
+- `docker pull busybox`: Busy Box is a great candidate for small tasks (pinging something, troubleshooting)
+- `docker inspect busybox`: Upon observation, filesystem layers are located in `/var/lib/overlay2/` (see `GraphDriver` > `Data` > *)
+- `sudo su`
+- `cd /var/lib/docker/overlay2`
+- `tree --inodes -L 3`: View 3 layers into `overlay2` directory to understand file structure.
+- `docker run -v /data -d busybox ping google.com`: Run a busybox container, add the /data directory to the container, `-d` for detached, and pinging Google.com
+
+## Dockerfile
+- Dockerfile docs: https://docs.docker.com/engine/reference/builder/
+- Instead of typing `docker run -dp 5000:5000 -v $PWD/app:/app -w /app python /bin/sh run.sh`, use a Dockerfile
+-  In the Dockerfile, use this text:
+```
+ FROM python
+ 
+ COPY ./app/ /app
+ 
+ WORKDIR /app
+ 
+ RUN pip install -r requirements.txt
+ 
+ EXPOSE 5000
+ 
+ ENTRYPOINT [ "python", app.py ]
+```
+- Now go to the `.../mtc-docker/infrastructure/dev1` directory and run 
+- `docker build -t dev1 .`: Builds the Docker container using the specifications defined in the `Dockerfile`
