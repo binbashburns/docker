@@ -125,3 +125,15 @@
 ```
 - Now go to the `.../mtc-docker/infrastructure/dev1` directory and run 
 - `docker build -t dev1 .`: Builds the Docker container using the specifications defined in the `Dockerfile`
+- Another example:
+```
+FROM Ubuntu
+
+RUN apt-get update && apt-get install python
+
+RUN pip install flask flask-mysql
+
+COPY . /opt/source-code
+
+ENTRYPOINT FLASK_APP=/opt/source-code/app.py flask run
+```
