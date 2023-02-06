@@ -263,3 +263,5 @@ docker network create \
 - Pull a container within that repository: `docker pull localhost:5000/my-image`
 - If you're accessing it from another host in your environment: `docker pull 192.168.56.100:5000/my-image`
 - To check the list of images pushed , use `curl -X GET localhost:5000/v2/_catalog`
+- Prune images on your local machine after pushing them to the repo: `docker image prune -a`
+- 
