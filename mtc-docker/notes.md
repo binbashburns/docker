@@ -219,3 +219,38 @@ services:
     front-end:
     back-end:
 ```
+
+## Docker Engine
+- `docker -H=remote-docker-engine:2375`
+- `docker -H=10.123.2.1:2375 run nginx`
+
+## Docker Volumes/Storage
+- `docker run -v data_volume:/var/lib/mysql mysql`
+- `docker run -v data_volume2:/var/lib/mysql mysql`
+- `docker run -v /data/mysql:/var/lib/mysql mysql`
+- `docker volume create data_volume`
+- `docker run \ --mount type=bind,source=/data/mysql,target=/var/lib/mysql mysql`
+- Run a mysql container again, but this time map a volume to the container so that the data stored by the container is stored at /opt/data on the host.
+- Use the same name : mysql-db and same password: db_pass123 as before. Mysql stores data at /var/lib/mysql inside the container.
+- `docker run -v /opt/data:/var/lib/mysql -d --name mysql-db -e MYSQL_ROOT_PASSWORD=db_pass123 mysql`
+- Disaster strikes.. again! And the database crashed again. But this time we have the data stored at `/opt/data` directory. Re-deploy a new mysql instance using the same options as before.
+- Just run the same command as before. Here it is for your convenience: `docker run -v /opt/data:/var/lib/mysql -d --name mysql-db -e MYSQL_ROOT_PASSWORD=db_pass123 mysql`
+
+## Docker Networking
+- When you install Docker it creates three networks automatically: `bridge`, `none`, and `host`.
+- `bridge` is the default network.
+- Bridge network: `docker run ubuntu`
+- None: `docker run Ubuntu --network=none`
+- Host: `docker run Ubuntu -- network=host`
+- You can also make user-defined networks: 
+```
+docker network create \
+  --driver bridge \
+  --subnet 182.18.0.0/16 \
+  --gateway= 182.18.0.1
+  custom-isolated-network
+```
+### Inspect the Network
+- `docker inspect blissful_hopper`
+- `docker network ls`
+- `docker network inspect bridge`
