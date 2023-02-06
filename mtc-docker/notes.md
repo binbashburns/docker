@@ -254,3 +254,12 @@ docker network create \
 - `docker inspect blissful_hopper`
 - `docker network ls`
 - `docker network inspect bridge`
+
+## Docker Registry Login
+- `docker login private-registry.io`
+- Deploy a private registry: `docker run -d -p 5000:5000 --name registry registry:2`
+- Create a container to be deployed to that repository: `docker image tag my-image localhost:5000/my-image`
+- Push the container to the repository/registry: `docker push localhost:5000/myimage`
+- Pull a container within that repository: `docker pull localhost:5000/my-image`
+- If you're accessing it from another host in your environment: `docker pull 192.168.56.100:5000/my-image`
+- 
