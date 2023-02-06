@@ -137,3 +137,85 @@ COPY . /opt/source-code
 
 ENTRYPOINT FLASK_APP=/opt/source-code/app.py flask run
 ```
+## Docker Compose
+- Let's assume all applications and containers are already built and loaded to the Docker repository
+- We'll start with the data layer first: `docker run -d --name=redis redis`
+- Next, we deploy the PostgreSQL database by running: `docker run -d --name=db postgres`
+- Then, we'll deploy a frontend app for a voting interface by running an instance of a voting app image: `docker run -d --name=vote -p 5000:80 voting-app`
+- Next, we'll deploy a "results" web application that shows the results to the user, which publishes port 80 on the container to port 5001 on the host running the Docker engine: `docker run -d --name=result -p 5001:80 result-app`
+- Finally, we deploy the worker by running an instance of the worker image: `docker run -d --name=worker worker`
+- When we try to access this from the browser, it shows an Internal Server Error. The reason is because we've built the applications, but we've not networked them together.
+- This is where we use LINKS. 
+### Links
+- `--link` is a command line option which can be used to link two containers together.
+- Using the voting app web service as an example, it is dependent on the Redis service.
+- When the webserver starts as you can see in this piece of code on the webserver it looks for a Redis server running on the host.
+```
+def get_redis():
+  if not hasattr(g, 'redis'):
+    g.redis = Redis(host="redis", db=0, socket_timeout=5)
+  return g.redis
+```
+- But the voting app container cannot resolve a host by the name Redis to make the voting app aware of the Redis service. We'll add a link option while running the voting app container to link it to the Redis container: `docker run -d --name=vote -p 5000:80 --link redis:redis voting-app`
+- Similarly, the results application will be linked to the database:  `docker run -d --name=result -p 5001:80 db:db result-app`
+- And lastly, the worker application needs to link up with redis and postgres: `docker run -d --name=worker --link db:db --link redis:redis worker`
+- Note: Using links this way is deprecated and support may be removed in the future. A better way is to use Docker Compose:
+```
+redis:
+  image: redis
+
+db:
+  image: postgres:9.4
+
+vote:
+  image: voting-app
+  ports:
+    - 5000:80
+  links:
+    - redis
+
+result:
+  image: result-app
+  ports:
+    - 5001:80
+  links:
+    - db
+
+worker:
+  image: worker
+  links:
+    - redis
+    - db
+```
+- Now it's as simple as running a `docker-compose up` command.
+- Let's add a network, outside of the default bridged network:
+```
+version: 2
+services:
+  
+  redis:
+    image: redis
+    networks:
+      - backend
+  
+  db:
+    image: postgres:9.4
+    networks:
+      - backend
+      
+  vote:
+    image: voting-app
+    networks:
+      - front-end
+      - back-end
+  
+  result:
+    image: result
+    networks:
+      - front-end
+      - back-end
+      
+  networks:
+    front-end:
+    back-end:
+```
